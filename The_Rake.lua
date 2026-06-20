@@ -1,4 +1,4 @@
---What do you want to do?
+--What are you doing?
 local textMap = {
     ["Main"] = "主页",
     ["Player"] = "玩家",

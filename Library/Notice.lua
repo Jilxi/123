@@ -1,0 +1,119 @@
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+local getUI = (gethui and gethui) or function() return CoreGui end
+local targetGui = getUI()
+
+local GUI_NAME = "Tailor"
+
+local screenGui = targetGui:FindFirstChild(GUI_NAME)
+if not screenGui then
+    screenGui = Instance.new("ScreenGui")
+    screenGui.Name = GUI_NAME
+    screenGui.Parent = targetGui
+end
+
+local container = screenGui:FindFirstChild("NotifyContainer")
+if not container then
+    container = Instance.new("Frame")
+    container.Name = "NotifyContainer"
+    container.Parent = screenGui
+    container.BackgroundTransparency = 1
+    container.Size = UDim2.new(0, 250, 1, -40)
+    container.Position = UDim2.new(1, -270, 0, 0)
+    container.ClipsDescendants = false
+
+    local layout = Instance.new("UIListLayout")
+    layout.Parent = container
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+    layout.Padding = UDim.new(0, 10)
+end
+
+return function(config)
+    local titleText = config.Title or "提醒"
+    local descText = config.Description or ""
+    local length = config.Length or 3
+
+    local wrapper = Instance.new("Frame")
+    wrapper.Name = "Wrapper"
+    wrapper.BackgroundTransparency = 1
+    wrapper.Size = UDim2.new(1, 0, 0, 80)
+    wrapper.Parent = container
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.Position = UDim2.new(1, 300, 0, 0) 
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    frame.BackgroundTransparency = 0.2
+    frame.Parent = wrapper
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(60, 60, 75)
+    stroke.Thickness = 1.5
+    stroke.Parent = frame
+
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Parent = frame
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Position = UDim2.new(0, 15, 0, 12)
+    titleLbl.Size = UDim2.new(1, -30, 0, 18)
+    titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.Text = titleText
+    titleLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLbl.TextSize = 14
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local descLbl = Instance.new("TextLabel")
+    descLbl.Parent = frame
+    descLbl.BackgroundTransparency = 1
+    descLbl.Position = UDim2.new(0, 15, 0, 32)
+    descLbl.Size = UDim2.new(1, -30, 1, -45)
+    descLbl.Font = Enum.Font.GothamMedium
+    descLbl.Text = descText
+    descLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+    descLbl.TextSize = 12
+    descLbl.TextXAlignment = Enum.TextXAlignment.Left
+    descLbl.TextYAlignment = Enum.TextYAlignment.Top
+    descLbl.TextWrapped = true
+
+    local barBg = Instance.new("Frame")
+    barBg.Parent = frame
+    barBg.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    barBg.BorderSizePixel = 0
+    barBg.Position = UDim2.new(0, 15, 1, -12)
+    barBg.Size = UDim2.new(1, -30, 0, 3)
+    
+    local barCorner = Instance.new("UICorner")
+    barCorner.CornerRadius = UDim.new(1, 0)
+    barCorner.Parent = barBg
+
+    local barFill = Instance.new("Frame")
+    barFill.Parent = barBg
+    barFill.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
+    barFill.BorderSizePixel = 0
+    barFill.Size = UDim2.new(1, 0, 1, 0)
+
+    local fillCorner = Instance.new("UICorner")
+    fillCorner.CornerRadius = UDim.new(1, 0)
+    fillCorner.Parent = barFill
+
+    local tweenInInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    local tweenOutInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    local barTweenInfo = TweenInfo.new(length, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
+
+    TweenService:Create(frame, tweenInInfo, {Position = UDim2.new(0, 0, 0, 0)}):Play()
+    
+    TweenService:Create(barFill, barTweenInfo, {Size = UDim2.new(0, 0, 1, 0)}):Play()
+
+    task.delay(length, function()
+        local tweenOut = TweenService:Create(frame, tweenOutInfo, {Position = UDim2.new(1, 300, 0, 0)})
+        tweenOut:Play()
+        tweenOut.Completed:Wait()
+        wrapper:Destroy()
+    end)
+end

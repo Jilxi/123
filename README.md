@@ -1,6 +1,5 @@
-`行内代码`
+`Loader`
 
 ```lua
--- 代码块，支持语法高亮
-local x = 1
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Jilxi/123/refs/heads/main/Loader.lua"))()
 ```

@@ -1,6 +1,8 @@
 ![](https://img.shields.io/badge/Roblox-Lua-blue)
+
 `Loader`
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Jilxi/123/refs/heads/main/Loader.lua"))()
 ```
+![stats](https://github-readme-stats.vercel.app/api?username=Jilxi)

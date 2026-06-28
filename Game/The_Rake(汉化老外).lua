@@ -229,7 +229,7 @@ end
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/lqdxt/Loader/refs/heads/main/Vyrnox_Hub.lua"))()
 
-task.wait(2)
+task.wait(1.5)
 
 pcall(watchContainer, game:GetService("CoreGui"))
 pcall(watchContainer, game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"))

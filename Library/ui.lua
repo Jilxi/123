@@ -194,7 +194,7 @@ function library.new(library, name, theme)
 	Main.Draggable = true
 
 	services.UserInputService.InputEnded:Connect(function(input)
-		if input.KeyCode == Enum.KeyCode.LeftControl then
+		if input.KeyCode == Enum.KeyCode.RightShift then
 			Main.Visible = not Main.Visible
 		end
 	end)

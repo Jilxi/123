@@ -193,8 +193,10 @@ function library.new(library, name, theme)
 	Main.Active = true
 	Main.Draggable = true
 
-	services.UserInputService.InputEnded:Connect(function(input)
-		if input.KeyCode == Enum.KeyCode.RightShift then
+    services.UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then return end 
+
+		if input.KeyCode == Enum.KeyCode.RightShift or input.KeyCode == Enum.          KeyCode.Insert then
 			Main.Visible = not Main.Visible
 		end
 	end)

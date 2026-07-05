@@ -139,12 +139,12 @@ function library.new(library, name, theme)
 		end
 	end
 
-	MainColor = Color3.fromRGB(120, 190, 255)
-	Background = Color3.fromRGB(35, 95, 165)
+	MainColor = Color3.fromRGB(25, 25, 25)
+	Background = Color3.fromRGB(25, 25, 25)
 	BackgroundTransparency = 0.5
-	zyColor = Color3.fromRGB(60, 140, 210)
+	zyColor = Color3.fromRGB(35, 40, 70)
 	zyColorTransparency = 0.3
-	beijingColor = Color3.fromRGB(210, 235, 255)
+	beijingColor = Color3.fromRGB(255, 255, 255)
 
 	local dogent = Instance.new("ScreenGui")
 	local Main = Instance.new("Frame")
@@ -384,7 +384,7 @@ function library.new(library, name, theme)
 
 	Open.Name = "Open"
 	Open.Parent = dogent
-	Open.BackgroundColor3 = Color3.fromRGB(35, 95, 165)
+	Open.BackgroundColor3 = Color3.fromRGB(28, 33, 55)
 	Open.BackgroundTransparency = BackgroundTransparency
 	Open.Position = UDim2.new(0.00829315186, 0, 0.31107837, 0)
 	Open.Size = UDim2.new(0, 61, 0, 32)
@@ -705,7 +705,7 @@ function library.new(library, name, theme)
 						if library.flags[flag] == state then return end
 						services.TweenService:Create(ToggleSwitch, TweenInfo.new(0.2), {
 							Position = UDim2.new(0, (state and ToggleSwitch.Size.X.Offset / 2 or 0), 0, 0),
-							BackgroundColor3 = (state and Color3.fromRGB(255, 255, 255) or beijingColor),
+							BackgroundColor3 = (state and Color3.fromRGB(96, 205, 255) or beijingColor),
 						}):Play()
 						library.flags[flag] = state
 						callback(state)

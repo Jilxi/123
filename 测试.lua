@@ -489,7 +489,7 @@ function library.new(library, name, theme)
 			Section.Name = "Section"
 			Section.Parent = Tab
 			Section.BackgroundColor3 = zyColor
-			Section.BackgroundTransparency = zyColorTransparency
+			Section.BackgroundTransparency = 1
 			Section.BorderSizePixel = 0
 			Section.ClipsDescendants = true
 			Section.Size = UDim2.new(0.981000006, 0, 0, 36)

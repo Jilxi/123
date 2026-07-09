@@ -12,7 +12,9 @@ library.currentTab = nil
 library.flags = {}
 local services = setmetatable({}, {
 	__index = function(t, k)
-		return cloneref(game:GetService(k))
+		local svc = cloneref(game:GetService(k))
+		rawset(t, k, svc)
+		return svc
 	end,
 })
 local mouse = services.Players.LocalPlayer:GetMouse()
@@ -21,14 +23,14 @@ local TextColor = Color3.fromRGB(255, 255, 255)
 local PlaceholderColor = Color3.fromRGB(180, 180, 180)
 local DisabledTextColor = Color3.fromRGB(150, 150, 150)
 
-function Tween(obj, t, data)
+local function Tween(obj, t, data)
 	services.TweenService
 		:Create(obj, TweenInfo.new(t[1], Enum.EasingStyle[t[2]], Enum.EasingDirection[t[3]]), data)
 		:Play()
 	return true
 end
 
-function Ripple(obj)
+local function Ripple(obj)
 	spawn(function()
 		if obj.ClipsDescendants ~= true then
 			obj.ClipsDescendants = true
@@ -64,7 +66,7 @@ end
 local toggled = false
 local switchingTabs = false
 
-function switchTab(new)
+local function switchTab(new)
 	if switchingTabs then
 		return
 	end
@@ -91,7 +93,7 @@ function switchTab(new)
 	switchingTabs = false
 end
 
-function drag(frame, hold)
+local function drag(frame, hold)
 	if not hold then
 		hold = frame
 	end
@@ -139,12 +141,12 @@ function library.new(library, name, theme)
 		end
 	end
 
-	MainColor = Color3.fromRGB(25, 25, 25)
-	Background = Color3.fromRGB(25, 25, 25)
-	BackgroundTransparency = 0.5
-	zyColor = Color3.fromRGB(35, 40, 70)
-	zyColorTransparency = 0.3
-	beijingColor = Color3.fromRGB(255, 255, 255)
+	local MainColor = Color3.fromRGB(0, 0, 0)
+	local Background = Color3.fromRGB(0, 0, 0)
+	local BackgroundTransparency = 0.5
+	local zyColor = Color3.fromRGB(30, 30, 30)
+	local zyColorTransparency = 0.3
+	local beijingColor = Color3.fromRGB(255, 255, 255)
 
 	local dogent = Instance.new("ScreenGui")
 	local Main = Instance.new("Frame")
@@ -173,11 +175,11 @@ function library.new(library, name, theme)
 	dogent.Name = "REN"
 	dogent.Parent = gethui()
 
-	function UiDestroy()
+	local function UiDestroy()
 		dogent:Destroy()
 	end
 
-	function ToggleUILib()
+	local function ToggleUILib()
 		Main.Visible = not Main.Visible
 	end
 
@@ -234,7 +236,7 @@ function library.new(library, name, theme)
 	})
 	UIGradient.Parent = DropShadow
 
-	local TweenService = cloneref(game:GetService("TweenService"))
+	local TweenService = services.TweenService
 	local tweeninfo = TweenInfo.new(7, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1)
 	local tween = TweenService:Create(UIGradient, tweeninfo, { Rotation = 360 })
 	tween:Play()
@@ -308,11 +310,10 @@ function library.new(library, name, theme)
 
 	UIGradientTitle.Parent = ScriptTitle
 
-	local function NPLHKB_fake_script()
-		local script = Instance.new("LocalScript", ScriptTitle)
-		local button = script.Parent
-		local gradient = button.UIGradient
-		local ts = cloneref(game:GetService("TweenService"))
+	-- 标题彩虹渐变动画:改为普通协程闭包,不再用 Instance.new("LocalScript", ...) 这种执行器下容易失效/多余的写法
+	local function titleRainbowAnimation()
+		local gradient = UIGradientTitle
+		local ts = services.TweenService
 		local ti = TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
 		local offset = { Offset = Vector2.new(1, 0) }
 		local create = ts:Create(gradient, ti, offset)
@@ -322,6 +323,7 @@ function library.new(library, name, theme)
 		local counter = 0
 		local status = "down"
 		gradient.Offset = startingPos
+
 		local function rainbowColors()
 			local sat, val = 255, 255
 			for i = 1, 10 do
@@ -332,6 +334,7 @@ function library.new(library, name, theme)
 		rainbowColors()
 		gradient.Color = s({ kpt(0, list[#list]), kpt(0.5, list[#list - 1]), kpt(1, list[#list - 2]) })
 		counter = #list
+
 		local function animate()
 			create:Play()
 			create.Completed:Wait()
@@ -371,7 +374,7 @@ function library.new(library, name, theme)
 		end
 		animate()
 	end
-	coroutine.wrap(NPLHKB_fake_script)()
+	coroutine.wrap(titleRainbowAnimation)()
 
 	SBG.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0.00, zyColor), ColorSequenceKeypoint.new(1.00, zyColor) })
 	SBG.Rotation = 90
@@ -384,7 +387,7 @@ function library.new(library, name, theme)
 
 	Open.Name = "Open"
 	Open.Parent = dogent
-	Open.BackgroundColor3 = Color3.fromRGB(28, 33, 55)
+	Open.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	Open.BackgroundTransparency = BackgroundTransparency
 	Open.Position = UDim2.new(0.00829315186, 0, 0.31107837, 0)
 	Open.Size = UDim2.new(0, 61, 0, 32)
@@ -489,7 +492,7 @@ function library.new(library, name, theme)
 			Section.Name = "Section"
 			Section.Parent = Tab
 			Section.BackgroundColor3 = zyColor
-			Section.BackgroundTransparency = 1
+			Section.BackgroundTransparency = zyColorTransparency
 			Section.BorderSizePixel = 0
 			Section.ClipsDescendants = true
 			Section.Size = UDim2.new(0.981000006, 0, 0, 36)
@@ -601,7 +604,12 @@ function library.new(library, name, theme)
 
 				Btn.MouseButton1Click:Connect(function()
 					spawn(function() Ripple(Btn) end)
-					spawn(callback)
+					spawn(function()
+						local ok, err = pcall(callback)
+						if not ok then
+							warn("[REN UI] Button callback error: " .. tostring(err))
+						end
+					end)
 				end)
 			end
 
@@ -615,7 +623,7 @@ function library.new(library, name, theme)
 				LabelModule.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 				LabelModule.BackgroundTransparency = 1.000
 				LabelModule.BorderSizePixel = 0
-				LabelModule.Position = UDim2.new(0, 0, NAN, 0)
+				LabelModule.Position = UDim2.new(0, 0, 0, 0) -- 修复:原来是 NAN(未定义全局变量),改为 0
 				LabelModule.Size = UDim2.new(0, 428, 0, 19)
 
 				TextLabel.Parent = LabelModule
@@ -705,10 +713,13 @@ function library.new(library, name, theme)
 						if library.flags[flag] == state then return end
 						services.TweenService:Create(ToggleSwitch, TweenInfo.new(0.2), {
 							Position = UDim2.new(0, (state and ToggleSwitch.Size.X.Offset / 2 or 0), 0, 0),
-							BackgroundColor3 = (state and Color3.fromRGB(96, 205, 255) or beijingColor),
+							BackgroundColor3 = (state and Color3.fromRGB(255, 255, 255) or beijingColor),
 						}):Play()
 						library.flags[flag] = state
-						callback(state)
+						local ok, err = pcall(callback, state)
+						if not ok then
+							warn("[REN UI] Toggle callback error: " .. tostring(err))
+						end
 					end,
 					Module = ToggleModule,
 				}
@@ -808,7 +819,10 @@ function library.new(library, name, theme)
 					if gpe then return end
 					if inp.UserInputType ~= Enum.UserInputType.Keyboard then return end
 					if inp.KeyCode ~= bindKey then return end
-					callback(bindKey.Name)
+					local ok, err = pcall(callback, bindKey.Name)
+					if not ok then
+						warn("[REN UI] Keybind callback error: " .. tostring(err))
+					end
 				end)
 
 				KeybindValue.MouseButton1Click:Connect(function()
@@ -919,7 +933,10 @@ function library.new(library, name, theme)
 				TextBox.FocusLost:Connect(function()
 					if TextBox.Text == "" then TextBox.Text = default end
 					library.flags[flag] = TextBox.Text
-					callback(TextBox.Text)
+					local ok, err = pcall(callback, TextBox.Text)
+					if not ok then
+						warn("[REN UI] Textbox callback error: " .. tostring(err))
+					end
 				end)
 
 				TextBox:GetPropertyChangedSignal("TextBounds"):Connect(function()
@@ -1071,7 +1088,10 @@ function library.new(library, name, theme)
 						library.flags[flag] = tonumber(value)
 						SliderValue.Text = tostring(value)
 						SliderPart.Size = UDim2.new(percent, 0, 1, 0)
-						callback(tonumber(value))
+						local ok, err = pcall(callback, tonumber(value))
+						if not ok then
+							warn("[REN UI] Slider callback error: " .. tostring(err))
+						end
 					end,
 				}
 
@@ -1266,7 +1286,10 @@ function library.new(library, name, theme)
 					OptionC.Parent = Option
 					Option.MouseButton1Click:Connect(function()
 						ToggleDropVis()
-						callback(Option.Text)
+						local ok, err = pcall(callback, Option.Text)
+						if not ok then
+							warn("[REN UI] Dropdown callback error: " .. tostring(err))
+						end
 						DropdownText.Text = Option.Text
 						library.flags[flag] = Option.Text
 					end)
@@ -1356,7 +1379,10 @@ function library.new(library, name, theme)
 				local function updateColor(newColor)
 					ColorPreview.BackgroundColor3 = newColor
 					library.flags[flag] = newColor
-					callback(newColor)
+					local ok, err = pcall(callback, newColor)
+					if not ok then
+						warn("[REN UI] Colorpicker callback error: " .. tostring(err))
+					end
 				end
 
 				local function updatePickerUI()

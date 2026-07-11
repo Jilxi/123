@@ -2,14 +2,56 @@ repeat
 	task.wait()
 until game:IsLoaded()
 
-pcall(function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/Jilxi/123/refs/heads/main/1.lua"))()
-end)
-
 local library = {}
-local ToggleUI = false
 library.currentTab = nil
 library.flags = {}
+library._signals = {}
+
+local cloneref = cloneref or clonereference or function(instance)
+	return instance
+end
+
+local function SafeParentUI(instance, parent)
+	local success, _ = pcall(function()
+		instance.Parent = parent
+	end)
+	if not (success and instance.Parent) then
+		pcall(function()
+			local Players = cloneref(game:GetService("Players"))
+			local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+			instance.Parent = LocalPlayer:WaitForChild("PlayerGui", math.huge)
+		end)
+	end
+end
+
+local function ProtectUI(ui)
+	pcall(function()
+		local pg = protectgui or (syn and syn.protect_gui)
+		if pg then pg(ui) end
+	end)
+end
+
+local function GiveSignal(connection)
+	if connection and (typeof(connection) == "RBXScriptConnection" or typeof(connection) == "RBXScriptSignal") then
+		table.insert(library._signals, connection)
+	end
+	return connection
+end
+
+local function safeCall(context, callback, ...)
+	if typeof(callback) ~= "function" then return end
+	local ok, err = pcall(callback, ...)
+	if not ok then
+		warn("[REN UI] " .. tostring(context) .. " error: " .. tostring(err))
+	end
+end
+
+pcall(function()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/Jilxi/123/refs/heads/main/1.lua"))()
+end)
+
+local ToggleUI = false
+
 local services = setmetatable({}, {
 	__index = function(t, k)
 		local svc = cloneref(game:GetService(k))
@@ -94,44 +136,60 @@ local function switchTab(new)
 end
 
 local function drag(frame, hold)
-	if not hold then
-		hold = frame
-	end
-	local dragging
-	local dragInput
-	local dragStart
-	local startPos
+	if not hold then hold = frame end
+	local dragging = false
+	local dragInput, dragStart, startPos
+	local changedConn
+
 	local function update(input)
 		local delta = input.Position - dragStart
 		frame.Position =
 			UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 	end
-	hold.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+	GiveSignal(hold.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
 			dragStart = input.Position
 			startPos = frame.Position
-			input.Changed:Connect(function()
+
+			if changedConn and changedConn.Connected then
+				changedConn:Disconnect()
+			end
+			changedConn = input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
 				end
 			end)
 		end
-	end)
-	frame.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement then
+	end))
+
+	GiveSignal(frame.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
 			dragInput = input
 		end
-	end)
-	services.UserInputService.InputChanged:Connect(function(input)
+	end))
+
+	GiveSignal(services.UserInputService.InputChanged:Connect(function(input)
 		if input == dragInput and dragging then
 			update(input)
 		end
-	end)
+	end))
 end
 
 local gethui = gethui or function()
 	return cloneref(game:GetService("CoreGui"))
+end
+
+local function CreateModal()
+	local modal = Instance.new("TextButton")
+	modal.BackgroundTransparency = 1
+	modal.Modal = false
+	modal.Size = UDim2.fromScale(0, 0)
+	modal.AnchorPoint = Vector2.zero
+	modal.Text = ""
+	modal.ZIndex = -999
+	return modal
 end
 
 function library.new(library, name, theme)
@@ -149,6 +207,10 @@ function library.new(library, name, theme)
 	local beijingColor = Color3.fromRGB(255, 255, 255)
 
 	local dogent = Instance.new("ScreenGui")
+
+	dogent.ResetOnSpawn = false
+	dogent.DisplayOrder = 998
+
 	local Main = Instance.new("Frame")
 	local TabMain = Instance.new("Frame")
 	local MainC = Instance.new("UICorner")
@@ -168,12 +230,13 @@ function library.new(library, name, theme)
 	local UIGradient = Instance.new("UIGradient")
 	local UIGradientTitle = Instance.new("UIGradient")
 
-	if syn and syn.protect_gui then
-		syn.protect_gui(dogent)
-	end
+	ProtectUI(dogent)
 
 	dogent.Name = "REN"
-	dogent.Parent = gethui()
+	SafeParentUI(dogent, gethui())
+
+	local ModalElement = CreateModal()
+	ModalElement.Parent = dogent
 
 	local function UiDestroy()
 		dogent:Destroy()
@@ -181,6 +244,7 @@ function library.new(library, name, theme)
 
 	local function ToggleUILib()
 		Main.Visible = not Main.Visible
+		ModalElement.Modal = Main.Visible
 	end
 
 	Main.Name = "Main"
@@ -195,11 +259,12 @@ function library.new(library, name, theme)
 	Main.Active = true
 	Main.Draggable = true
 
-	services.UserInputService.InputEnded:Connect(function(input)
+	GiveSignal(services.UserInputService.InputEnded:Connect(function(input)
 		if input.KeyCode == Enum.KeyCode.RightShift then
 			Main.Visible = not Main.Visible
+			ModalElement.Modal = Main.Visible
 		end
-	end)
+	end))
 
 	drag(Main)
 	UICornerMain.Parent = Main
@@ -310,7 +375,6 @@ function library.new(library, name, theme)
 
 	UIGradientTitle.Parent = ScriptTitle
 
-	-- 标题彩虹渐变动画:改为普通协程闭包,不再用 Instance.new("LocalScript", ...) 这种执行器下容易失效/多余的写法
 	local function titleRainbowAnimation()
 		local gradient = UIGradientTitle
 		local ts = services.TweenService
@@ -381,9 +445,9 @@ function library.new(library, name, theme)
 	SBG.Name = "SBG"
 	SBG.Parent = SB
 
-	TabBtnsL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	GiveSignal(TabBtnsL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 		TabBtns.CanvasSize = UDim2.new(0, 0, 0, TabBtnsL.AbsoluteContentSize.Y + 18)
-	end)
+	end))
 
 	Open.Name = "Open"
 	Open.Parent = dogent
@@ -402,9 +466,10 @@ function library.new(library, name, theme)
 
 	UIG.Parent = Open
 
-	Open.MouseButton1Click:Connect(function()
+	GiveSignal(Open.MouseButton1Click:Connect(function()
 		Main.Visible = not Main.Visible
-	end)
+		ModalElement.Modal = Main.Visible
+	end))
 
 	local window = {}
 
@@ -462,20 +527,20 @@ function library.new(library, name, theme)
 		TabL.SortOrder = Enum.SortOrder.LayoutOrder
 		TabL.Padding = UDim.new(0, 4)
 
-		TabBtn.MouseButton1Click:Connect(function()
+		GiveSignal(TabBtn.MouseButton1Click:Connect(function()
 			spawn(function()
 				Ripple(TabBtn)
 			end)
 			switchTab({ TabIco, Tab })
-		end)
+		end))
 
 		if library.currentTab == nil then
 			switchTab({ TabIco, Tab })
 		end
 
-		TabL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		GiveSignal(TabL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 			Tab.CanvasSize = UDim2.new(0, 0, 0, TabL.AbsoluteContentSize.Y + 8)
-		end)
+		end))
 
 		local tab = {}
 
@@ -556,17 +621,17 @@ function library.new(library, name, theme)
 				SectionOpen.ImageTransparency = (open and 1 or 0)
 			end
 
-			SectionToggle.MouseButton1Click:Connect(function()
+			GiveSignal(SectionToggle.MouseButton1Click:Connect(function()
 				open = not open
 				Section.Size = UDim2.new(0.981000006, 0, 0, open and 36 + ObjsL.AbsoluteContentSize.Y + 8 or 36)
 				SectionOpened.ImageTransparency = (open and 0 or 1)
 				SectionOpen.ImageTransparency = (open and 1 or 0)
-			end)
+			end))
 
-			ObjsL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			GiveSignal(ObjsL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 				if not open then return end
 				Section.Size = UDim2.new(0.981000006, 0, 0, 36 + ObjsL.AbsoluteContentSize.Y + 8)
-			end)
+			end))
 
 			local section = {}
 
@@ -602,15 +667,12 @@ function library.new(library, name, theme)
 				BtnC.Name = "BtnC"
 				BtnC.Parent = Btn
 
-				Btn.MouseButton1Click:Connect(function()
+				GiveSignal(Btn.MouseButton1Click:Connect(function()
 					spawn(function() Ripple(Btn) end)
 					spawn(function()
-						local ok, err = pcall(callback)
-						if not ok then
-							warn("[REN UI] Button callback error: " .. tostring(err))
-						end
+						safeCall("Button", callback)
 					end)
-				end)
+				end))
 			end
 
 			function section:Label(text)
@@ -623,7 +685,7 @@ function library.new(library, name, theme)
 				LabelModule.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 				LabelModule.BackgroundTransparency = 1.000
 				LabelModule.BorderSizePixel = 0
-				LabelModule.Position = UDim2.new(0, 0, 0, 0) -- 修复:原来是 NAN(未定义全局变量),改为 0
+				LabelModule.Position = UDim2.new(0, 0, 0, 0)
 				LabelModule.Size = UDim2.new(0, 428, 0, 19)
 
 				TextLabel.Parent = LabelModule
@@ -716,10 +778,7 @@ function library.new(library, name, theme)
 							BackgroundColor3 = (state and Color3.fromRGB(255, 255, 255) or beijingColor),
 						}):Play()
 						library.flags[flag] = state
-						local ok, err = pcall(callback, state)
-						if not ok then
-							warn("[REN UI] Toggle callback error: " .. tostring(err))
-						end
+						safeCall("Toggle", callback, state)
 					end,
 					Module = ToggleModule,
 				}
@@ -728,9 +787,9 @@ function library.new(library, name, theme)
 					funcs:SetState(flag, true)
 				end
 
-				ToggleBtn.MouseButton1Click:Connect(function()
+				GiveSignal(ToggleBtn.MouseButton1Click:Connect(function()
 					funcs:SetState()
-				end)
+				end))
 
 				return funcs
 			end
@@ -815,17 +874,14 @@ function library.new(library, name, theme)
 				UIPadding.Parent = KeybindBtn
 				UIPadding.PaddingRight = UDim.new(0, 6)
 
-				services.UserInputService.InputBegan:Connect(function(inp, gpe)
+				GiveSignal(services.UserInputService.InputBegan:Connect(function(inp, gpe)
 					if gpe then return end
 					if inp.UserInputType ~= Enum.UserInputType.Keyboard then return end
 					if inp.KeyCode ~= bindKey then return end
-					local ok, err = pcall(callback, bindKey.Name)
-					if not ok then
-						warn("[REN UI] Keybind callback error: " .. tostring(err))
-					end
-				end)
+					safeCall("Keybind", callback, bindKey.Name)
+				end))
 
-				KeybindValue.MouseButton1Click:Connect(function()
+				GiveSignal(KeybindValue.MouseButton1Click:Connect(function()
 					KeybindValue.Text = "..."
 					wait()
 					local key, uwu = services.UserInputService.InputEnded:Wait()
@@ -841,11 +897,11 @@ function library.new(library, name, theme)
 					wait()
 					bindKey = Enum.KeyCode[keyName]
 					KeybindValue.Text = shortNames[keyName] or keyName
-				end)
+				end))
 
-				KeybindValue:GetPropertyChangedSignal("TextBounds"):Connect(function()
+				GiveSignal(KeybindValue:GetPropertyChangedSignal("TextBounds"):Connect(function()
 					KeybindValue.Size = UDim2.new(0, KeybindValue.TextBounds.X + 30, 0, 28)
-				end)
+				end))
 				KeybindValue.Size = UDim2.new(0, KeybindValue.TextBounds.X + 30, 0, 28)
 			end
 
@@ -930,18 +986,15 @@ function library.new(library, name, theme)
 				TextboxBackP.Parent = TextboxBack
 				TextboxBackP.PaddingRight = UDim.new(0, 6)
 
-				TextBox.FocusLost:Connect(function()
+				GiveSignal(TextBox.FocusLost:Connect(function()
 					if TextBox.Text == "" then TextBox.Text = default end
 					library.flags[flag] = TextBox.Text
-					local ok, err = pcall(callback, TextBox.Text)
-					if not ok then
-						warn("[REN UI] Textbox callback error: " .. tostring(err))
-					end
-				end)
+					safeCall("Textbox", callback, TextBox.Text)
+				end))
 
-				TextBox:GetPropertyChangedSignal("TextBounds"):Connect(function()
+				GiveSignal(TextBox:GetPropertyChangedSignal("TextBounds"):Connect(function()
 					BoxBG.Size = UDim2.new(0, TextBox.TextBounds.X + 30, 0, 28)
-				end)
+				end))
 				BoxBG.Size = UDim2.new(0, TextBox.TextBounds.X + 30, 0, 28)
 			end
 
@@ -1088,46 +1141,43 @@ function library.new(library, name, theme)
 						library.flags[flag] = tonumber(value)
 						SliderValue.Text = tostring(value)
 						SliderPart.Size = UDim2.new(percent, 0, 1, 0)
-						local ok, err = pcall(callback, tonumber(value))
-						if not ok then
-							warn("[REN UI] Slider callback error: " .. tostring(err))
-						end
+						safeCall("Slider", callback, tonumber(value))
 					end,
 				}
 
-				MinSlider.MouseButton1Click:Connect(function()
+				GiveSignal(MinSlider.MouseButton1Click:Connect(function()
 					funcs:SetValue(math.clamp(library.flags[flag] - 1, min, max))
-				end)
-				AddSlider.MouseButton1Click:Connect(function()
+				end))
+				GiveSignal(AddSlider.MouseButton1Click:Connect(function()
 					funcs:SetValue(math.clamp(library.flags[flag] + 1, min, max))
-				end)
+				end))
 				funcs:SetValue(default)
 
 				local dragging, boxFocused, allowed = false, false, { [""] = true, ["-"] = true }
 
-				SliderBar.InputBegan:Connect(function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				GiveSignal(SliderBar.InputBegan:Connect(function(input)
+					if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 						funcs:SetValue()
 						dragging = true
 					end
-				end)
-				services.UserInputService.InputEnded:Connect(function(input)
-					if dragging and input.UserInputType == Enum.UserInputType.MouseButton1 then
+				end))
+				GiveSignal(services.UserInputService.InputEnded:Connect(function(input)
+					if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
 						dragging = false
 					end
-				end)
-				services.UserInputService.InputChanged:Connect(function(input)
-					if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+				end))
+				GiveSignal(services.UserInputService.InputChanged:Connect(function(input)
+					if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
 						funcs:SetValue()
 					end
-				end)
+				end))
 
-				SliderValue.Focused:Connect(function() boxFocused = true end)
-				SliderValue.FocusLost:Connect(function()
+				GiveSignal(SliderValue.Focused:Connect(function() boxFocused = true end))
+				GiveSignal(SliderValue.FocusLost:Connect(function()
 					boxFocused = false
 					if SliderValue.Text == "" then funcs:SetValue(default) end
-				end)
-				SliderValue:GetPropertyChangedSignal("Text"):Connect(function()
+				end))
+				GiveSignal(SliderValue:GetPropertyChangedSignal("Text"):Connect(function()
 					if not boxFocused then return end
 					SliderValue.Text = SliderValue.Text:gsub("%D+", "")
 					local text = SliderValue.Text
@@ -1140,7 +1190,7 @@ function library.new(library, name, theme)
 						end
 						funcs:SetValue(tonumber(text))
 					end
-				end)
+				end))
 
 				return funcs
 			end
@@ -1235,7 +1285,8 @@ function library.new(library, name, theme)
 							if txt == "" then
 								option.Visible = true
 							else
-								option.Visible = option.Text:lower():match(txt:lower()) ~= nil
+								-- 【建议改进】纯文本查找，避免 Lua pattern 特殊字符导致报错
+								option.Visible = string.find(option.Text:lower(), txt:lower(), 1, true) ~= nil
 							end
 						end
 					end
@@ -1249,19 +1300,19 @@ function library.new(library, name, theme)
 					DropdownModule.Size = UDim2.new(0, 428, 0, (open and DropdownModuleL.AbsoluteContentSize.Y + 4 or 38))
 				end
 
-				DropdownOpen.MouseButton1Click:Connect(ToggleDropVis)
-				DropdownText.Focused:Connect(function()
+				GiveSignal(DropdownOpen.MouseButton1Click:Connect(ToggleDropVis))
+				GiveSignal(DropdownText.Focused:Connect(function()
 					if open then return end
 					ToggleDropVis()
-				end)
-				DropdownText:GetPropertyChangedSignal("Text"):Connect(function()
+				end))
+				GiveSignal(DropdownText:GetPropertyChangedSignal("Text"):Connect(function()
 					if not open then return end
 					searchDropdown(DropdownText.Text)
-				end)
-				DropdownModuleL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+				end))
+				GiveSignal(DropdownModuleL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 					if not open then return end
 					DropdownModule.Size = UDim2.new(0, 428, 0, DropdownModuleL.AbsoluteContentSize.Y + 4)
-				end)
+				end))
 
 				local funcs = {}
 
@@ -1284,15 +1335,12 @@ function library.new(library, name, theme)
 					OptionC.CornerRadius = UDim.new(0, 6)
 					OptionC.Name = "OptionC"
 					OptionC.Parent = Option
-					Option.MouseButton1Click:Connect(function()
+					GiveSignal(Option.MouseButton1Click:Connect(function()
 						ToggleDropVis()
-						local ok, err = pcall(callback, Option.Text)
-						if not ok then
-							warn("[REN UI] Dropdown callback error: " .. tostring(err))
-						end
+						safeCall("Dropdown", callback, Option.Text)
 						DropdownText.Text = Option.Text
 						library.flags[flag] = Option.Text
-					end)
+					end))
 				end
 
 				funcs.RemoveOption = function(self, option)
@@ -1313,7 +1361,6 @@ function library.new(library, name, theme)
 				return funcs
 			end
 
-			-- ========== 颜色选择器 ==========
 			function section.Colorpicker(section, text, flag, defaultColor, callback)
 				assert(text, "No text provided")
 				assert(flag, "No flag provided")
@@ -1379,10 +1426,7 @@ function library.new(library, name, theme)
 				local function updateColor(newColor)
 					ColorPreview.BackgroundColor3 = newColor
 					library.flags[flag] = newColor
-					local ok, err = pcall(callback, newColor)
-					if not ok then
-						warn("[REN UI] Colorpicker callback error: " .. tostring(err))
-					end
+					safeCall("Colorpicker", callback, newColor)
 				end
 
 				local function updatePickerUI()
@@ -1412,7 +1456,10 @@ function library.new(library, name, theme)
 
 					pickerGui = Instance.new("ScreenGui")
 					pickerGui.Name = "ColorPicker_" .. flag
-					pickerGui.Parent = gethui()
+					pickerGui.ResetOnSpawn = false
+					pickerGui.DisplayOrder = 998
+					SafeParentUI(pickerGui, gethui())
+					ProtectUI(pickerGui)
 					pickerGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 					local mainFrame = Instance.new("Frame")
@@ -1452,12 +1499,11 @@ function library.new(library, name, theme)
 					closeBtn.AutoButtonColor = false
 					Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 4)
 
-					closeBtn.MouseButton1Click:Connect(function()
+					GiveSignal(closeBtn.MouseButton1Click:Connect(function()
 						if pickerGui then pickerGui:Destroy(); pickerGui = nil end
 						isOpen = false
-					end)
+					end))
 
-					-- 饱和度/亮度面板
 					satVibMap = Instance.new("ImageLabel")
 					satVibMap.Parent = mainFrame
 					satVibMap.Size = UDim2.new(0, 160, 0, 160)
@@ -1478,7 +1524,6 @@ function library.new(library, name, theme)
 					cursorStroke.Transparency = 0.1
 					cursorStroke.Color = Color3.fromRGB(255, 255, 255)
 
-					-- 色相滑块
 					hueSlider = Instance.new("Frame")
 					hueSlider.Parent = mainFrame
 					hueSlider.Size = UDim2.new(0, 8, 0, 160)
@@ -1511,7 +1556,6 @@ function library.new(library, name, theme)
 					dragStroke.Transparency = 0.1
 					dragStroke.Color = Color3.fromRGB(255, 255, 255)
 
-					-- RGB 输入框
 					local function createBox(y, init)
 						local box = Instance.new("TextBox")
 						box.Parent = mainFrame
@@ -1532,7 +1576,6 @@ function library.new(library, name, theme)
 					bBox = createBox(98, math.floor(defaultColor.B * 255))
 					hexBox = createBox(128, "#" .. defaultColor:ToHex())
 
-					-- 旧色/新色预览
 					local oldFrame = Instance.new("Frame")
 					oldFrame.Parent = mainFrame
 					oldFrame.Position = UDim2.new(0, 10, 0, 210)
@@ -1548,7 +1591,6 @@ function library.new(library, name, theme)
 					newFrame.BackgroundColor3 = defaultColor
 					Instance.new("UICorner", newFrame).CornerRadius = UDim.new(0, 8)
 
-					-- 确认/取消按钮
 					local cancelBtn = Instance.new("TextButton")
 					cancelBtn.Parent = mainFrame
 					cancelBtn.Position = UDim2.new(0, 10, 0, 248)
@@ -1574,27 +1616,26 @@ function library.new(library, name, theme)
 					confirmBtn.AutoButtonColor = false
 					Instance.new("UICorner", confirmBtn).CornerRadius = UDim.new(0, 6)
 
-					-- 拖拽逻辑
 					local draggingSat, draggingHue = false, false
 
-					satVibMap.InputBegan:Connect(function(input)
+					GiveSignal(satVibMap.InputBegan:Connect(function(input)
 						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 							draggingSat = true
 							currentSat = math.clamp((input.Position.X - satVibMap.AbsolutePosition.X) / satVibMap.AbsoluteSize.X, 0, 1)
 							currentVib = math.clamp(1 - (input.Position.Y - satVibMap.AbsolutePosition.Y) / satVibMap.AbsoluteSize.Y, 0, 1)
 							updatePickerUI()
 						end
-					end)
+					end))
 
-					hueSlider.InputBegan:Connect(function(input)
+					GiveSignal(hueSlider.InputBegan:Connect(function(input)
 						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 							draggingHue = true
 							currentHue = math.clamp((input.Position.Y - hueSlider.AbsolutePosition.Y) / hueSlider.AbsoluteSize.Y, 0, 1)
 							updatePickerUI()
 						end
-					end)
+					end))
 
-					services.UserInputService.InputChanged:Connect(function(input)
+					GiveSignal(services.UserInputService.InputChanged:Connect(function(input)
 						if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
 							if draggingSat then
 								currentSat = math.clamp((input.Position.X - satVibMap.AbsolutePosition.X) / satVibMap.AbsoluteSize.X, 0, 1)
@@ -1605,16 +1646,15 @@ function library.new(library, name, theme)
 								updatePickerUI()
 							end
 						end
-					end)
+					end))
 
-					services.UserInputService.InputEnded:Connect(function(input)
+					GiveSignal(services.UserInputService.InputEnded:Connect(function(input)
 						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 							draggingSat = false
 							draggingHue = false
 						end
-					end)
+					end))
 
-					-- RGB/Hex 输入
 					local function updateFromRGB()
 						local r = math.clamp(tonumber(rBox.Text) or 0, 0, 255)
 						local g = math.clamp(tonumber(gBox.Text) or 0, 0, 255)
@@ -1623,11 +1663,11 @@ function library.new(library, name, theme)
 						updatePickerUI()
 					end
 
-					rBox.FocusLost:Connect(function(enter) if enter then updateFromRGB() end end)
-					gBox.FocusLost:Connect(function(enter) if enter then updateFromRGB() end end)
-					bBox.FocusLost:Connect(function(enter) if enter then updateFromRGB() end end)
+					GiveSignal(rBox.FocusLost:Connect(function(enter) if enter then updateFromRGB() end end))
+					GiveSignal(gBox.FocusLost:Connect(function(enter) if enter then updateFromRGB() end end))
+					GiveSignal(bBox.FocusLost:Connect(function(enter) if enter then updateFromRGB() end end))
 
-					hexBox.FocusLost:Connect(function(enter)
+					GiveSignal(hexBox.FocusLost:Connect(function(enter)
 						if enter then
 							local hex = hexBox.Text:gsub("#", "")
 							local ok, col = pcall(Color3.fromHex, hex)
@@ -1638,23 +1678,23 @@ function library.new(library, name, theme)
 								hexBox.Text = "#" .. Color3.fromHSV(currentHue, currentSat, currentVib):ToHex()
 							end
 						end
-					end)
+					end))
 
-					confirmBtn.MouseButton1Click:Connect(function()
+					GiveSignal(confirmBtn.MouseButton1Click:Connect(function()
 						updateColor(Color3.fromHSV(currentHue, currentSat, currentVib))
 						if pickerGui then pickerGui:Destroy(); pickerGui = nil end
 						isOpen = false
-					end)
+					end))
 
-					cancelBtn.MouseButton1Click:Connect(function()
+					GiveSignal(cancelBtn.MouseButton1Click:Connect(function()
 						if pickerGui then pickerGui:Destroy(); pickerGui = nil end
 						isOpen = false
-					end)
+					end))
 
 					updatePickerUI()
 				end
 
-				ColorBtn.MouseButton1Click:Connect(function()
+				GiveSignal(ColorBtn.MouseButton1Click:Connect(function()
 					if not isOpen then
 						createPicker()
 						isOpen = true
@@ -1662,7 +1702,7 @@ function library.new(library, name, theme)
 						if pickerGui then pickerGui:Destroy(); pickerGui = nil end
 						createPicker()
 					end
-				end)
+				end))
 
 				local funcs = {
 					SetColor = function(self, newColor)
@@ -1678,6 +1718,19 @@ function library.new(library, name, theme)
 			return section
 		end
 		return tab
+	end
+
+	function library.Unload()
+		for idx = #library._signals, 1, -1 do
+			local conn = table.remove(library._signals, idx)
+			if conn and conn.Connected then
+				conn:Disconnect()
+			end
+		end
+		table.clear(library._signals)
+		table.clear(library.flags)
+		library.currentTab = nil
+		if dogent then dogent:Destroy() end
 	end
 
 	return window

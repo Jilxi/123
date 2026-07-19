@@ -42,7 +42,7 @@ function ClickerModule.Init(clicker, settings)
             Settings = "rbxassetid://70541424009556"
         }
 
-        -- ★修复: 用 GuiInset 补偿真实屏幕坐标, 替代原来瞎凑的硬编码偏移
+        -- ★修复: 点击坐标需要用 GuiInset 补偿(状态栏/刘海等), 而不是硬编码偏移
         local function getScreenPos(target)
             local pos = target.AbsolutePosition
             local size = target.AbsoluteSize
@@ -50,6 +50,21 @@ function ClickerModule.Init(clicker, settings)
             local x = pos.X + size.X / 2 + inset.X
             local y = pos.Y + size.Y / 2 + inset.Y
             return x, y
+        end
+
+        -- ★修复: 手游大多只识别触摸(Touch)事件, 鼠标事件常常不被判定为有效点击
+        -- 优先用 SendTouchTapAction 模拟手指点击屏幕, 失败(执行器不支持)再回退鼠标事件
+        local function performClick(x, y)
+            local touchOk = pcall(function()
+                VirtualInputManager:SendTouchTapAction(Vector2.new(x, y), 1, false)
+            end)
+            if touchOk then return end
+
+            pcall(function()
+                VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
+                task.wait(settings.pressDuration or 0.01)
+                VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
+            end)
         end
 
         local ScreenGui = Instance.new("ScreenGui")
@@ -98,6 +113,7 @@ function ClickerModule.Init(clicker, settings)
         settingsLayout.Padding = UDim.new(0, 10)
         settingsLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
+        -- ★优化: 所有可拖拽对象共用一条 InputChanged 连接, 而不是每个 dot 各开一条
         local dragState = {}
         local function makeDrag(obj, handle)
             handle = handle or obj
@@ -216,6 +232,7 @@ function ClickerModule.Init(clicker, settings)
             SettingsUI.Visible = not SettingsUI.Visible
         end)
 
+        -- ★优化: 内部删除复用外部的 destroyAutoClicker, 避免两套清理逻辑不一致
         safeConnect(DeleteBtn.MouseButton1Click, function()
             isRunning = false
             destroyAutoClicker()
@@ -293,14 +310,11 @@ function ClickerModule.Init(clicker, settings)
                     while isRunning do
                         if #Targets == 0 then break end
                         local delay = settings.clickDelay or 0.5
-                        local duration = settings.pressDuration or 0.01
                         for _, target in ipairs(Targets) do
                             if not isRunning then break end
                             if target and target.Parent then
                                 local x, y = getScreenPos(target)
-                                VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
-                                task.wait(duration)
-                                VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
+                                performClick(x, y)
                                 task.wait(delay)
                             end
                         end

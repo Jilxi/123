@@ -1,4 +1,7 @@
 -- AutoClicker.lua
+-- 用法: local ClickerModule = loadstring(game:HttpGet(URL))()
+--       ClickerModule.Init(clicker, settings)
+
 local ClickerModule = {}
 
 function ClickerModule.Init(clicker, settings)
@@ -16,6 +19,7 @@ function ClickerModule.Init(clicker, settings)
         local Players = game:GetService("Players")
         local VirtualInputManager = game:GetService("VirtualInputManager")
         local UserInputService = game:GetService("UserInputService")
+        local GuiService = game:GetService("GuiService")
         local CoreGui = game:GetService("CoreGui")
         local HttpService = game:GetService("HttpService")
 
@@ -37,6 +41,16 @@ function ClickerModule.Init(clicker, settings)
             Delete   = "rbxassetid://105775511743927",
             Settings = "rbxassetid://70541424009556"
         }
+
+        -- ★修复: 用 GuiInset 补偿真实屏幕坐标, 替代原来瞎凑的硬编码偏移
+        local function getScreenPos(target)
+            local pos = target.AbsolutePosition
+            local size = target.AbsoluteSize
+            local inset = GuiService:GetGuiInset()
+            local x = pos.X + size.X / 2 + inset.X
+            local y = pos.Y + size.Y / 2 + inset.Y
+            return x, y
+        end
 
         local ScreenGui = Instance.new("ScreenGui")
         ScreenGui.Name = "AutoClicker_Classic"
@@ -283,10 +297,7 @@ function ClickerModule.Init(clicker, settings)
                         for _, target in ipairs(Targets) do
                             if not isRunning then break end
                             if target and target.Parent then
-                                local pos = target.AbsolutePosition
-                                local size = target.AbsoluteSize
-                                local x = pos.X + size.X / 2 + 35
-                                local y = pos.Y + size.Y / 2 + 50
+                                local x, y = getScreenPos(target)
                                 VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
                                 task.wait(duration)
                                 VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)

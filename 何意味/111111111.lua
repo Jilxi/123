@@ -1,10 +1,7 @@
--- AutoClicker.lua
--- 用法: local ClickerModule = loadstring(game:HttpGet(URL))()
---       ClickerModule.Init(clicker, settings)
-
 local ClickerModule = {}
 
-function ClickerModule.Init(clicker, settings)
+function ClickerModule.Init(clickerTab, settings)
+    local clicker = clickerTab:Section("启动", true)
     local clickerUI       = nil
     local clickerConns    = {}
     local destroyAutoClicker
@@ -19,7 +16,6 @@ function ClickerModule.Init(clicker, settings)
         local Players = game:GetService("Players")
         local VirtualInputManager = game:GetService("VirtualInputManager")
         local UserInputService = game:GetService("UserInputService")
-        local GuiService = game:GetService("GuiService")
         local CoreGui = game:GetService("CoreGui")
         local HttpService = game:GetService("HttpService")
 
@@ -41,31 +37,6 @@ function ClickerModule.Init(clicker, settings)
             Delete   = "rbxassetid://105775511743927",
             Settings = "rbxassetid://70541424009556"
         }
-
-        -- ★修复: 点击坐标需要用 GuiInset 补偿(状态栏/刘海等), 而不是硬编码偏移
-        local function getScreenPos(target)
-            local pos = target.AbsolutePosition
-            local size = target.AbsoluteSize
-            local inset = GuiService:GetGuiInset()
-            local x = pos.X + size.X / 2 + inset.X
-            local y = pos.Y + size.Y / 2 + inset.Y
-            return x, y
-        end
-
-        -- ★修复: 手游大多只识别触摸(Touch)事件, 鼠标事件常常不被判定为有效点击
-        -- 优先用 SendTouchTapAction 模拟手指点击屏幕, 失败(执行器不支持)再回退鼠标事件
-        local function performClick(x, y)
-            local touchOk = pcall(function()
-                VirtualInputManager:SendTouchTapAction(Vector2.new(x, y), 1, false)
-            end)
-            if touchOk then return end
-
-            pcall(function()
-                VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
-                task.wait(settings.pressDuration or 0.01)
-                VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
-            end)
-        end
 
         local ScreenGui = Instance.new("ScreenGui")
         ScreenGui.Name = "AutoClicker_Classic"
@@ -113,7 +84,7 @@ function ClickerModule.Init(clicker, settings)
         settingsLayout.Padding = UDim.new(0, 10)
         settingsLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-        -- ★优化: 所有可拖拽对象共用一条 InputChanged 连接, 而不是每个 dot 各开一条
+        -- 共用一条拖拽连接, 不给每个点各开一条
         local dragState = {}
         local function makeDrag(obj, handle)
             handle = handle or obj
@@ -232,7 +203,7 @@ function ClickerModule.Init(clicker, settings)
             SettingsUI.Visible = not SettingsUI.Visible
         end)
 
-        -- ★优化: 内部删除复用外部的 destroyAutoClicker, 避免两套清理逻辑不一致
+        -- 内部删除复用外部销毁逻辑, 避免两套清理逻辑不一致
         safeConnect(DeleteBtn.MouseButton1Click, function()
             isRunning = false
             destroyAutoClicker()
@@ -273,16 +244,16 @@ function ClickerModule.Init(clicker, settings)
                 settingsPosition = {SettingsUI.Position.X.Scale, SettingsUI.Position.X.Offset, SettingsUI.Position.Y.Scale, SettingsUI.Position.Y.Offset},
                 dotData = dotData
             }
-            if not isfolder("BS脚本") then makefolder("BS脚本") end
-            writefile("BS脚本/自动点击器.txt", HttpService:JSONEncode(data))
+            if not isfolder("Tailor") then makefolder("Tailor") end
+            writefile("Tailor/自动点击器.txt", HttpService:JSONEncode(data))
         end)
 
         createSettingsBtn("清空保存", 2, function()
-            if isfile("BS脚本/自动点击器.txt") then delfile("BS脚本/自动点击器.txt") end
+            if isfile("Tailor/自动点击器.txt") then delfile("Tailor/自动点击器.txt") end
         end)
 
         local function loadData()
-            if isfile("BS脚本/自动点击器.txt") then
+            if isfile("Tailor/自动点击器.txt") then
                 local ok, data = pcall(function() return HttpService:JSONDecode(readfile("BS脚本/自动点击器.txt")) end)
                 if ok and data then
                     if data.panelPosition then Panel.Position = UDim2.new(unpack(data.panelPosition)) end
@@ -309,13 +280,17 @@ function ClickerModule.Init(clicker, settings)
                 task.spawn(function()
                     while isRunning do
                         if #Targets == 0 then break end
-                        local delay = settings.clickDelay or 0.5
                         for _, target in ipairs(Targets) do
                             if not isRunning then break end
                             if target and target.Parent then
-                                local x, y = getScreenPos(target)
-                                performClick(x, y)
-                                task.wait(delay)
+                                local pos = target.AbsolutePosition
+                                local size = target.AbsoluteSize
+                                local x = pos.X + size.X / 2 + 35
+                                local y = pos.Y + size.Y / 2 + 50
+                                VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
+                                task.wait(settings.pressDuration or 0.01)
+                                VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
+                                task.wait(settings.clickDelay or 0.5)
                             end
                         end
                         task.wait()

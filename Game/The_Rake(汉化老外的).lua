@@ -1,3 +1,4 @@
+--[[
 local textMap = {
     ["Main"] = "主页",
     ["Player"] = "玩家",
@@ -233,3 +234,15 @@ task.wait(1.0)
 
 pcall(watchContainer, game:GetService("CoreGui"))
 pcall(watchContainer, game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"))
+]]
+
+local StarterGui = game:GetService("StarterGui")
+
+pcall(function()
+    StarterGui:SetCore("SendNotification", {
+        Title = "通知",
+        Text = "老外已删库",
+        Icon = "",
+        Duration = 5
+    })
+end)

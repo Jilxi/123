@@ -1,4 +1,3 @@
---[[
 local textMap = {
     ["Main"] = "主页",
     ["Player"] = "玩家",
@@ -228,20 +227,19 @@ local function watchContainer(container)
     end)
 end
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/lqdxt/Loader/refs/heads/main/Vyrnox_Hub.lua"))()
+loadstring(game:HttpGet("https://pastebin.com/raw/nDpRrjrj"))()
 
 task.wait(1.0)
 
 pcall(watchContainer, game:GetService("CoreGui"))
 pcall(watchContainer, game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui"))
-]]
 
 local StarterGui = game:GetService("StarterGui")
 
 pcall(function()
     StarterGui:SetCore("SendNotification", {
         Title = "通知",
-        Text = "老外已删库",
+        Text = "需要解卡密",
         Icon = "",
         Duration = 5
     })

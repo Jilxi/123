@@ -2,14 +2,19 @@ repeat
 	task.wait()
 until game:IsLoaded()
 
+local cloneref = cloneref or clonereference or function(instance)
+	return instance
+end
+
+local CoreGui: CoreGui = cloneref(game:GetService("CoreGui"))
+local Players: Players = cloneref(game:GetService("Players"))
+local TweenService: TweenService = cloneref(game:GetService("TweenService"))
+local UserInputService: UserInputService = cloneref(game:GetService("UserInputService"))
+
 local library = {}
 library.currentTab = nil
 library.flags = {}
 library._signals = {}
-
-local cloneref = cloneref or clonereference or function(instance)
-	return instance
-end
 
 local function SafeParentUI(instance, parent)
 	local success, _ = pcall(function()
@@ -17,7 +22,6 @@ local function SafeParentUI(instance, parent)
 	end)
 	if not (success and instance.Parent) then
 		pcall(function()
-			local Players = cloneref(game:GetService("Players"))
 			local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 			instance.Parent = LocalPlayer:WaitForChild("PlayerGui", math.huge)
 		end)
@@ -51,22 +55,14 @@ pcall(function()
 end)
 
 local ToggleUI = false
-
-local services = setmetatable({}, {
-	__index = function(t, k)
-		local svc = cloneref(game:GetService(k))
-		rawset(t, k, svc)
-		return svc
-	end,
-})
-local mouse = services.Players.LocalPlayer:GetMouse()
+local mouse = Players.LocalPlayer:GetMouse()
 
 local TextColor = Color3.fromRGB(255, 255, 255)
 local PlaceholderColor = Color3.fromRGB(180, 180, 180)
 local DisabledTextColor = Color3.fromRGB(150, 150, 150)
 
 local function Tween(obj, t, data)
-	services.TweenService
+	TweenService
 		:Create(obj, TweenInfo.new(t[1], Enum.EasingStyle[t[2]], Enum.EasingDirection[t[3]]), data)
 		:Play()
 	return true
@@ -116,8 +112,8 @@ local function switchTab(new)
 	if old == nil then
 		new[2].Visible = true
 		library.currentTab = new
-		services.TweenService:Create(new[1], TweenInfo.new(0.1), { ImageTransparency = 0 }):Play()
-		services.TweenService:Create(new[1].TabText, TweenInfo.new(0.1), { TextTransparency = 0 }):Play()
+		TweenService:Create(new[1], TweenInfo.new(0.1), { ImageTransparency = 0 }):Play()
+		TweenService:Create(new[1].TabText, TweenInfo.new(0.1), { TextTransparency = 0 }):Play()
 		return
 	end
 	if old[1] == new[1] then
@@ -125,10 +121,10 @@ local function switchTab(new)
 	end
 	switchingTabs = true
 	library.currentTab = new
-	services.TweenService:Create(old[1], TweenInfo.new(0.1), { ImageTransparency = 0.2 }):Play()
-	services.TweenService:Create(new[1], TweenInfo.new(0.1), { ImageTransparency = 0 }):Play()
-	services.TweenService:Create(old[1].TabText, TweenInfo.new(0.1), { TextTransparency = 0.2 }):Play()
-	services.TweenService:Create(new[1].TabText, TweenInfo.new(0.1), { TextTransparency = 0 }):Play()
+	TweenService:Create(old[1], TweenInfo.new(0.1), { ImageTransparency = 0.2 }):Play()
+	TweenService:Create(new[1], TweenInfo.new(0.1), { ImageTransparency = 0 }):Play()
+	TweenService:Create(old[1].TabText, TweenInfo.new(0.1), { TextTransparency = 0.2 }):Play()
+	TweenService:Create(new[1].TabText, TweenInfo.new(0.1), { TextTransparency = 0 }):Play()
 	old[2].Visible = false
 	new[2].Visible = true
 	task.wait(0.1)
@@ -137,9 +133,7 @@ end
 
 local function drag(frame, hold)
 	if not hold then hold = frame end
-	local dragging = false
-	local dragInput, dragStart, startPos
-	local changedConn
+	local dragging, dragInput, dragStart, startPos, changedConn = false, nil, nil, nil, nil
 
 	local function update(input)
 		local delta = input.Position - dragStart
@@ -170,7 +164,7 @@ local function drag(frame, hold)
 		end
 	end))
 
-	GiveSignal(services.UserInputService.InputChanged:Connect(function(input)
+	GiveSignal(UserInputService.InputChanged:Connect(function(input)
 		if input == dragInput and dragging then
 			update(input)
 		end
@@ -178,7 +172,7 @@ local function drag(frame, hold)
 end
 
 local gethui = gethui or function()
-	return cloneref(game:GetService("CoreGui"))
+	return CoreGui
 end
 
 local function CreateModal()
@@ -229,20 +223,22 @@ function library.new(library, name, theme)
 	local UICornerMain = Instance.new("UICorner")
 	local UIGradient = Instance.new("UIGradient")
 	local UIGradientTitle = Instance.new("UIGradient")
+	local ModalElement = CreateModal()
+	local window = {}
+	local UiDestroy, ToggleUILib
 
 	ProtectUI(dogent)
 
 	dogent.Name = "REN"
 	SafeParentUI(dogent, gethui())
 
-	local ModalElement = CreateModal()
 	ModalElement.Parent = dogent
 
-	local function UiDestroy()
+	UiDestroy = function()
 		dogent:Destroy()
 	end
 
-	local function ToggleUILib()
+	ToggleUILib = function()
 		Main.Visible = not Main.Visible
 		ModalElement.Modal = Main.Visible
 	end
@@ -259,7 +255,7 @@ function library.new(library, name, theme)
 	Main.Active = true
 	Main.Draggable = true
 
-	GiveSignal(services.UserInputService.InputEnded:Connect(function(input)
+	GiveSignal(UserInputService.InputEnded:Connect(function(input)
 		if input.KeyCode == Enum.KeyCode.RightShift then
 			Main.Visible = not Main.Visible
 			ModalElement.Modal = Main.Visible
@@ -301,7 +297,6 @@ function library.new(library, name, theme)
 	})
 	UIGradient.Parent = DropShadow
 
-	local TweenService = services.TweenService
 	local tweeninfo = TweenInfo.new(7, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1)
 	local tween = TweenService:Create(UIGradient, tweeninfo, { Rotation = 360 })
 	tween:Play()
@@ -377,7 +372,7 @@ function library.new(library, name, theme)
 
 	local function titleRainbowAnimation()
 		local gradient = UIGradientTitle
-		local ts = services.TweenService
+		local ts = TweenService
 		local ti = TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
 		local offset = { Offset = Vector2.new(1, 0) }
 		local create = ts:Create(gradient, ti, offset)
@@ -471,14 +466,13 @@ function library.new(library, name, theme)
 		ModalElement.Modal = Main.Visible
 	end))
 
-	local window = {}
-
 	function window.Tab(window, name, icon)
 		local Tab = Instance.new("ScrollingFrame")
 		local TabIco = Instance.new("ImageLabel")
 		local TabText = Instance.new("TextLabel")
 		local TabBtn = Instance.new("TextButton")
 		local TabL = Instance.new("UIListLayout")
+		local tab = {}
 
 		Tab.Name = "Tab"
 		Tab.Parent = TabMain
@@ -542,8 +536,6 @@ function library.new(library, name, theme)
 			Tab.CanvasSize = UDim2.new(0, 0, 0, TabL.AbsoluteContentSize.Y + 8)
 		end))
 
-		local tab = {}
-
 		function tab.Section(tab, name, TabVal)
 			local Section = Instance.new("Frame")
 			local SectionC = Instance.new("UICorner")
@@ -553,6 +545,8 @@ function library.new(library, name, theme)
 			local SectionToggle = Instance.new("ImageButton")
 			local Objs = Instance.new("Frame")
 			local ObjsL = Instance.new("UIListLayout")
+			local open = TabVal
+			local section = {}
 
 			Section.Name = "Section"
 			Section.Parent = Tab
@@ -614,7 +608,6 @@ function library.new(library, name, theme)
 			ObjsL.SortOrder = Enum.SortOrder.LayoutOrder
 			ObjsL.Padding = UDim.new(0, 8)
 
-			local open = TabVal
 			if TabVal ~= false then
 				Section.Size = UDim2.new(0.981000006, 0, 0, open and 36 + ObjsL.AbsoluteContentSize.Y + 8 or 36)
 				SectionOpened.ImageTransparency = (open and 0 or 1)
@@ -632,8 +625,6 @@ function library.new(library, name, theme)
 				if not open then return end
 				Section.Size = UDim2.new(0.981000006, 0, 0, 36 + ObjsL.AbsoluteContentSize.Y + 8)
 			end))
-
-			local section = {}
 
 			function section.Button(section, text, callback)
 				local callback = callback or function() end
@@ -719,6 +710,9 @@ function library.new(library, name, theme)
 				local ToggleSwitch = Instance.new("Frame")
 				local ToggleSwitchC = Instance.new("UICorner")
 				local ToggleDisableC = Instance.new("UICorner")
+				local funcs = {
+					Module = ToggleModule,
+				}
 
 				ToggleModule.Name = "ToggleModule"
 				ToggleModule.Parent = Objs
@@ -767,21 +761,18 @@ function library.new(library, name, theme)
 				ToggleDisableC.Name = "ToggleDisableC"
 				ToggleDisableC.Parent = ToggleDisable
 
-				local funcs = {
-					SetState = function(self, state)
-						if state == nil then
-							state = not library.flags[flag]
-						end
-						if library.flags[flag] == state then return end
-						services.TweenService:Create(ToggleSwitch, TweenInfo.new(0.2), {
-							Position = UDim2.new(0, (state and ToggleSwitch.Size.X.Offset / 2 or 0), 0, 0),
-							BackgroundColor3 = (state and Color3.fromRGB(255, 255, 255) or beijingColor),
-						}):Play()
-						library.flags[flag] = state
-						safeCall("Toggle", callback, state)
-					end,
-					Module = ToggleModule,
-				}
+				function funcs:SetState(state)
+					if state == nil then
+						state = not library.flags[flag]
+					end
+					if library.flags[flag] == state then return end
+					TweenService:Create(ToggleSwitch, TweenInfo.new(0.2), {
+						Position = UDim2.new(0, (state and ToggleSwitch.Size.X.Offset / 2 or 0), 0, 0),
+						BackgroundColor3 = (state and Color3.fromRGB(255, 255, 255) or beijingColor),
+					}):Play()
+					library.flags[flag] = state
+					safeCall("Toggle", callback, state)
+				end
 
 				if enabled ~= false then
 					funcs:SetState(flag, true)
@@ -874,7 +865,7 @@ function library.new(library, name, theme)
 				UIPadding.Parent = KeybindBtn
 				UIPadding.PaddingRight = UDim.new(0, 6)
 
-				GiveSignal(services.UserInputService.InputBegan:Connect(function(inp, gpe)
+				GiveSignal(UserInputService.InputBegan:Connect(function(inp, gpe)
 					if gpe then return end
 					if inp.UserInputType ~= Enum.UserInputType.Keyboard then return end
 					if inp.KeyCode ~= bindKey then return end
@@ -884,7 +875,7 @@ function library.new(library, name, theme)
 				GiveSignal(KeybindValue.MouseButton1Click:Connect(function()
 					KeybindValue.Text = "..."
 					wait()
-					local key, uwu = services.UserInputService.InputEnded:Wait()
+					local key, uwu = UserInputService.InputEnded:Wait()
 					local keyName = tostring(key.KeyCode.Name)
 					if key.UserInputType ~= Enum.UserInputType.Keyboard then
 						KeybindValue.Text = keyTxt
@@ -1021,6 +1012,8 @@ function library.new(library, name, theme)
 				local SliderValue = Instance.new("TextBox")
 				local MinSlider = Instance.new("TextButton")
 				local AddSlider = Instance.new("TextButton")
+				local funcs = {}
+				local dragging, boxFocused, allowed = false, false, { [""] = true, ["-"] = true }
 
 				SliderModule.Name = "SliderModule"
 				SliderModule.Parent = Objs
@@ -1128,22 +1121,20 @@ function library.new(library, name, theme)
 				AddSlider.TextTransparency = 0
 				AddSlider.TextWrapped = true
 
-				local funcs = {
-					SetValue = function(self, value)
-						local percent = (mouse.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X
-						if value then percent = (value - min) / (max - min) end
-						percent = math.clamp(percent, 0, 1)
-						if precise then
-							value = value or tonumber(string.format("%.1f", tostring(min + (max - min) * percent)))
-						else
-							value = value or math.floor(min + (max - min) * percent)
-						end
-						library.flags[flag] = tonumber(value)
-						SliderValue.Text = tostring(value)
-						SliderPart.Size = UDim2.new(percent, 0, 1, 0)
-						safeCall("Slider", callback, tonumber(value))
-					end,
-				}
+				function funcs:SetValue(value)
+					local percent = (mouse.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X
+					if value then percent = (value - min) / (max - min) end
+					percent = math.clamp(percent, 0, 1)
+					if precise then
+						value = value or tonumber(string.format("%.1f", tostring(min + (max - min) * percent)))
+					else
+						value = value or math.floor(min + (max - min) * percent)
+					end
+					library.flags[flag] = tonumber(value)
+					SliderValue.Text = tostring(value)
+					SliderPart.Size = UDim2.new(percent, 0, 1, 0)
+					safeCall("Slider", callback, tonumber(value))
+				end
 
 				GiveSignal(MinSlider.MouseButton1Click:Connect(function()
 					funcs:SetValue(math.clamp(library.flags[flag] - 1, min, max))
@@ -1153,20 +1144,18 @@ function library.new(library, name, theme)
 				end))
 				funcs:SetValue(default)
 
-				local dragging, boxFocused, allowed = false, false, { [""] = true, ["-"] = true }
-
 				GiveSignal(SliderBar.InputBegan:Connect(function(input)
 					if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 						funcs:SetValue()
 						dragging = true
 					end
 				end))
-				GiveSignal(services.UserInputService.InputEnded:Connect(function(input)
+				GiveSignal(UserInputService.InputEnded:Connect(function(input)
 					if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
 						dragging = false
 					end
 				end))
-				GiveSignal(services.UserInputService.InputChanged:Connect(function(input)
+				GiveSignal(UserInputService.InputChanged:Connect(function(input)
 					if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
 						funcs:SetValue()
 					end
@@ -1208,6 +1197,8 @@ function library.new(library, name, theme)
 				local DropdownOpen = Instance.new("TextButton")
 				local DropdownText = Instance.new("TextBox")
 				local DropdownModuleL = Instance.new("UIListLayout")
+				local open = false
+				local funcs = {}
 
 				DropdownModule.Name = "DropdownModule"
 				DropdownModule.Parent = Objs
@@ -1285,14 +1276,12 @@ function library.new(library, name, theme)
 							if txt == "" then
 								option.Visible = true
 							else
-								-- 【建议改进】纯文本查找，避免 Lua pattern 特殊字符导致报错
 								option.Visible = string.find(option.Text:lower(), txt:lower(), 1, true) ~= nil
 							end
 						end
 					end
 				end
 
-				local open = false
 				local ToggleDropVis = function()
 					open = not open
 					if open then setAllVisible() end
@@ -1314,9 +1303,7 @@ function library.new(library, name, theme)
 					DropdownModule.Size = UDim2.new(0, 428, 0, DropdownModuleL.AbsoluteContentSize.Y + 4)
 				end))
 
-				local funcs = {}
-
-				funcs.AddOption = function(self, option)
+				function funcs:AddOption(option)
 					local Option = Instance.new("TextButton")
 					local OptionC = Instance.new("UICorner")
 					Option.Name = "Option_" .. option
@@ -1343,12 +1330,12 @@ function library.new(library, name, theme)
 					end))
 				end
 
-				funcs.RemoveOption = function(self, option)
+				function funcs:RemoveOption(option)
 					local opt = DropdownModule:FindFirstChild("Option_" .. option)
 					if opt then opt:Destroy() end
 				end
 
-				funcs.SetOptions = function(self, opts)
+				function funcs:SetOptions(opts)
 					for _, v in next, DropdownModule:GetChildren() do
 						if v.Name:match("Option_") then v:Destroy() end
 					end
@@ -1381,6 +1368,10 @@ function library.new(library, name, theme)
 				local ColorBtnC = Instance.new("UICorner")
 				local ColorPreview = Instance.new("Frame")
 				local ColorPreviewC = Instance.new("UICorner")
+				local pickerGui = nil
+				local isOpen = false
+				local currentHue, currentSat, currentVib = Color3.toHSV(defaultColor)
+				local satVibMap, satCursor, hueSlider, hueDrag, hexBox, rBox, gBox, bBox
 
 				ColorModule.Name = "ColorModule"
 				ColorModule.Parent = Objs
@@ -1418,11 +1409,6 @@ function library.new(library, name, theme)
 				ColorPreviewC.Name = "ColorPreviewC"
 				ColorPreviewC.Parent = ColorPreview
 
-				local pickerGui = nil
-				local isOpen = false
-				local currentHue, currentSat, currentVib = Color3.toHSV(defaultColor)
-				local satVibMap, satCursor, hueSlider, hueDrag, hexBox, rBox, gBox, bBox
-
 				local function updateColor(newColor)
 					ColorPreview.BackgroundColor3 = newColor
 					library.flags[flag] = newColor
@@ -1453,6 +1439,8 @@ function library.new(library, name, theme)
 
 				local function createPicker()
 					if pickerGui then return end
+
+					local draggingSat, draggingHue = false, false
 
 					pickerGui = Instance.new("ScreenGui")
 					pickerGui.Name = "ColorPicker_" .. flag
@@ -1616,11 +1604,10 @@ function library.new(library, name, theme)
 					confirmBtn.AutoButtonColor = false
 					Instance.new("UICorner", confirmBtn).CornerRadius = UDim.new(0, 6)
 
-					local draggingSat, draggingHue = false, false
-
 					GiveSignal(satVibMap.InputBegan:Connect(function(input)
 						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 							draggingSat = true
+							mainFrame.Draggable = false
 							currentSat = math.clamp((input.Position.X - satVibMap.AbsolutePosition.X) / satVibMap.AbsoluteSize.X, 0, 1)
 							currentVib = math.clamp(1 - (input.Position.Y - satVibMap.AbsolutePosition.Y) / satVibMap.AbsoluteSize.Y, 0, 1)
 							updatePickerUI()
@@ -1630,12 +1617,13 @@ function library.new(library, name, theme)
 					GiveSignal(hueSlider.InputBegan:Connect(function(input)
 						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 							draggingHue = true
+							mainFrame.Draggable = false
 							currentHue = math.clamp((input.Position.Y - hueSlider.AbsolutePosition.Y) / hueSlider.AbsoluteSize.Y, 0, 1)
 							updatePickerUI()
 						end
 					end))
 
-					GiveSignal(services.UserInputService.InputChanged:Connect(function(input)
+					GiveSignal(UserInputService.InputChanged:Connect(function(input)
 						if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
 							if draggingSat then
 								currentSat = math.clamp((input.Position.X - satVibMap.AbsolutePosition.X) / satVibMap.AbsoluteSize.X, 0, 1)
@@ -1648,10 +1636,11 @@ function library.new(library, name, theme)
 						end
 					end))
 
-					GiveSignal(services.UserInputService.InputEnded:Connect(function(input)
+					GiveSignal(UserInputService.InputEnded:Connect(function(input)
 						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 							draggingSat = false
 							draggingHue = false
+							mainFrame.Draggable = true
 						end
 					end))
 

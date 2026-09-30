@@ -4,6 +4,6 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/Jilxi/123/refs/heads/
 ```
 <div align="center">
 
-![](https://hits.sh/github.com/Jilxi/仓库名.svg?label=&color=blue&style=flat-square)
+![](https://hits.sh/github.com/Jilxi/123.svg?label=&color=blue&style=flat-square)
 
 </div>

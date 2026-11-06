@@ -1,4 +1,4 @@
---Physics gun 这么喜欢看我仓库,hyw呢
+--Physics gun
 function sandbox(var,func)
 	local env = getfenv(func)
 	local newenv = setmetatable({},{
